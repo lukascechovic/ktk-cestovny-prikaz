@@ -14,6 +14,8 @@
     --bg: #f4f6f8;
     --error: #c0392b;
     --error-bg: #fdecea;
+    --warn: #b8860b;
+    --warn-bg: #fdf6e3;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
@@ -30,6 +32,13 @@
   }
   .field { margin-bottom: .9rem; }
   .req::after { content: " *"; color: var(--error); }
+  .podmienene > label { color: var(--warn); }
+  .badge-podminene {
+    display: inline-block; margin-left: .4rem; padding: .05rem .4rem; border-radius: 999px;
+    background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn);
+    font-size: .7rem; font-weight: 600; vertical-align: middle;
+  }
+  .podmienene input + input { margin-top: .4rem; }
   .radio-group { display: flex; gap: 1.2rem; align-items: center; }
   .radio-group label { font-weight: 500; display: flex; align-items: center; gap: .35rem; margin-bottom: 0; }
   #chyby {
@@ -122,6 +131,11 @@
         <label class="req" for="odchodTam">Odchod (dátum a čas)</label>
         <input id="odchodTam" name="odchodTam" type="datetime-local">
       </div>
+      <div class="field podmienene" data-show="zahranicna" hidden>
+        <label class="req" for="prechodHraniceTamMiesto">Prechod hranice (kde a kedy)<span class="badge-podminene">podmienené</span></label>
+        <input id="prechodHraniceTamMiesto" name="prechodHraniceTamMiesto" type="text" placeholder="kde – hraničný prechod" data-req="zahranicna" required>
+        <input id="prechodHraniceTamCas" name="prechodHraniceTamCas" type="datetime-local" data-req="zahranicna" required>
+      </div>
       <div class="field">
         <label class="req" for="prichodNaMiesto">Príchod na miesto (dátum a čas)</label>
         <input id="prichodNaMiesto" name="prichodNaMiesto" type="datetime-local">
@@ -133,6 +147,11 @@
       <div class="field">
         <label class="req" for="odchodZoSC">Odchod zo SC (dátum a čas)</label>
         <input id="odchodZoSC" name="odchodZoSC" type="datetime-local">
+      </div>
+      <div class="field podmienene" data-show="zahranicna" hidden>
+        <label class="req" for="prechodHraniceSpatMiesto">Prechod hranice (kde a kedy)<span class="badge-podminene">podmienené</span></label>
+        <input id="prechodHraniceSpatMiesto" name="prechodHraniceSpatMiesto" type="text" placeholder="kde – hraničný prechod" data-req="zahranicna" required>
+        <input id="prechodHraniceSpatCas" name="prechodHraniceSpatCas" type="datetime-local" data-req="zahranicna" required>
       </div>
       <div class="field">
         <label class="req">Miesto príchodu</label>
@@ -192,11 +211,48 @@
     ].map(([kluc, popis]) => [kluc, popis, jeChybajuceBool]),
   ];
 
+  // Podmienené povinné polia — vyžadujú sa len vtedy, keď je splnená podmienka (prepínač).
+  const PODMINENE_POLIA = [
+    {
+      kluc: 'prechodHraniceTamMiesto',
+      popis: 'Prechod hranice tam (kde)',
+      podmienka: 'Zahraničná cesta = áno',
+      plati: (fd) => fd.zahranicna === true,
+      jeChybajuce: jePrazdnyText,
+    },
+    {
+      kluc: 'prechodHraniceTamCas',
+      popis: 'Prechod hranice tam (kedy)',
+      podmienka: 'Zahraničná cesta = áno',
+      plati: (fd) => fd.zahranicna === true,
+      jeChybajuce: jePrazdnyText,
+    },
+    {
+      kluc: 'prechodHraniceSpatMiesto',
+      popis: 'Prechod hranice späť (kde)',
+      podmienka: 'Zahraničná cesta = áno',
+      plati: (fd) => fd.zahranicna === true,
+      jeChybajuce: jePrazdnyText,
+    },
+    {
+      kluc: 'prechodHraniceSpatCas',
+      popis: 'Prechod hranice späť (kedy)',
+      podmienka: 'Zahraničná cesta = áno',
+      plati: (fd) => fd.zahranicna === true,
+      jeChybajuce: jePrazdnyText,
+    },
+  ];
+
   function validuj(formData) {
     const errors = [];
     for (const [kluc, popis, jeChybajuce] of POVINNE_POLIA) {
       if (jeChybajuce(formData[kluc])) {
         errors.push(`Chýba povinné pole: ${popis}`);
+      }
+    }
+    for (const pravidlo of PODMINENE_POLIA) {
+      if (pravidlo.plati(formData) && pravidlo.jeChybajuce(formData[pravidlo.kluc])) {
+        errors.push(`Chýba podmienene povinné pole (${pravidlo.podmienka}): ${pravidlo.popis}`);
       }
     }
     return errors;
@@ -216,7 +272,12 @@
     return `${formatujDatum(datumovaCast)} ${casovaCast}`;
   }
 
+  function riadokPrechodHranice(miesto, cas) {
+    return `Prechod hranice (kde a kedy): ${String(miesto).trim()}, ${formatujDatumACas(cas)}`;
+  }
+
   function vygenerujVystup(formData) {
+    const zahranicna = formData.zahranicna === true;
     const riadky = [
       `Meno a priezvisko: ${formData.menoPriezvisko}`,
       `Kde: ${formData.kde}`,
@@ -232,13 +293,23 @@
       'Cesta tam',
       `Miesto odchodu: ${formData.miestoOdchodu}`,
       `Odchod (dátum a čas): ${formatujDatumACas(formData.odchodTam)}`,
+    ];
+    if (zahranicna) {
+      riadky.push(riadokPrechodHranice(formData.prechodHraniceTamMiesto, formData.prechodHraniceTamCas));
+    }
+    riadky.push(
       `Príchod na miesto (dátum a čas): ${formatujDatumACas(formData.prichodNaMiesto)}`,
       '',
       'Cesta späť',
       `Odchod zo SC (dátum a čas): ${formatujDatumACas(formData.odchodZoSC)}`,
+    );
+    if (zahranicna) {
+      riadky.push(riadokPrechodHranice(formData.prechodHraniceSpatMiesto, formData.prechodHraniceSpatCas));
+    }
+    riadky.push(
       `Miesto príchodu: ${formData.miestoPrichodu}`,
       `Príchod (dátum a čas): ${formatujDatumACas(formData.prichodSpat)}`,
-    ];
+    );
     const spolucestujuci = (formData.spolucestujuci || '').trim();
     if (spolucestujuci) {
       riadky.push('', `Spolucestujúci: ${spolucestujuci}`);
@@ -280,6 +351,7 @@
     vygenerujVystup,
     vygenerujNazovSuboru,
     vzdyPovinnePolia: POVINNE_POLIA.map(([kluc]) => kluc),
+    podmienenePolia: PODMINENE_POLIA.map((p) => p.kluc),
   };
 })();
 
@@ -309,12 +381,29 @@ if (typeof document !== 'undefined') {
         hradene: fd.get('hradene') || '',
         miestoOdchodu: fd.get('miestoOdchodu') || '',
         odchodTam: fd.get('odchodTam') || '',
+        prechodHraniceTamMiesto: fd.get('prechodHraniceTamMiesto') || '',
+        prechodHraniceTamCas: fd.get('prechodHraniceTamCas') || '',
         prichodNaMiesto: fd.get('prichodNaMiesto') || '',
         odchodZoSC: fd.get('odchodZoSC') || '',
+        prechodHraniceSpatMiesto: fd.get('prechodHraniceSpatMiesto') || '',
+        prechodHraniceSpatCas: fd.get('prechodHraniceSpatCas') || '',
         miestoPrichodu: fd.get('miestoPrichodu') || '',
         prichodSpat: fd.get('prichodSpat') || '',
         spolucestujuci: fd.get('spolucestujuci') || '',
       };
+    }
+
+    // Prepínače (Zahraničná cesta / Stravné / Ubytovanie) zobrazia a vyžadujú
+    // podmienené polia označené data-show / data-req (rovnaký vzor ako prototyp).
+    const PREPINACE = ['zahranicna', 'stravne', 'ubytovanie'];
+
+    function aplikujPodmienenePolia() {
+      const fd = new FormData(form);
+      for (const meno of PREPINACE) {
+        const zapnute = fd.get(meno) === 'ano';
+        form.querySelectorAll(`[data-show="${meno}"]`).forEach((uzol) => { uzol.hidden = !zapnute; });
+        form.querySelectorAll(`[data-req="${meno}"]`).forEach((input) => { input.required = zapnute; });
+      }
     }
 
     function unikniHtml(text) {
@@ -401,6 +490,12 @@ if (typeof document !== 'undefined') {
       zobrazChyby([]);
       zobrazStav('');
     });
+
+    form.addEventListener('change', (e) => {
+      if (PREPINACE.includes(e.target.name)) aplikujPodmienenePolia();
+    });
+    form.addEventListener('reset', () => setTimeout(aplikujPodmienenePolia, 0));
+    aplikujPodmienenePolia();
   })();
 }
 </script>

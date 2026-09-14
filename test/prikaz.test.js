@@ -42,6 +42,51 @@ function zakladneData() {
   };
 }
 
+// Podmienené polia Prechod hranice (vyžadujú sa pri Zahraničná cesta = áno).
+const PRECHOD_HRANICE = {
+  prechodHraniceTamMiesto: 'Brodské',
+  prechodHraniceTamCas: '2026-09-15T09:15',
+  prechodHraniceSpatMiesto: 'Brodské',
+  prechodHraniceSpatCas: '2026-09-16T11:00',
+};
+
+function zahranicneData() {
+  return {
+    ...zakladneData(),
+    kde: 'Viedeň',
+    institucia: 'TU Wien',
+    zahranicna: true,
+    prichodNaMiesto: '2026-09-15T10:30',
+    prichodSpat: '2026-09-16T14:00',
+    ...PRECHOD_HRANICE,
+  };
+}
+
+const OCAKAVANY_VYSTUP_ZAHRANICNY = [
+  'Meno a priezvisko: Ján Novák',
+  'Kde: Viedeň',
+  'Kedy (dátum): 15.09.2026',
+  'Doprava: vlak',
+  'Dôvod: konferencia XY',
+  'Navštívená inštitúcia: TU Wien',
+  'Zahraničná cesta: áno',
+  'Stravné: nie',
+  'Ubytovanie: nie',
+  'Hradené (z čoho): grant XY',
+  '',
+  'Cesta tam',
+  'Miesto odchodu: Žilina FRI',
+  'Odchod (dátum a čas): 15.09.2026 07:00',
+  'Prechod hranice (kde a kedy): Brodské, 15.09.2026 09:15',
+  'Príchod na miesto (dátum a čas): 15.09.2026 10:30',
+  '',
+  'Cesta späť',
+  'Odchod zo SC (dátum a čas): 15.09.2026 16:00',
+  'Prechod hranice (kde a kedy): Brodské, 16.09.2026 11:00',
+  'Miesto príchodu: Žilina FRI',
+  'Príchod (dátum a čas): 16.09.2026 14:00',
+].join('\r\n');
+
 const OCAKAVANY_VYSTUP = [
   'Meno a priezvisko: Ján Novák',
   'Kde: Bratislava',
@@ -86,12 +131,47 @@ test('chýbajúce vždy povinné pole vráti blokujúcu chybu a nevygeneruje vý
 });
 
 test('výber áno pri Zahraničná cesta / Stravné / Ubytovanie appku nezrúti', () => {
-  const data = { ...zakladneData(), zahranicna: true, stravne: true, ubytovanie: true };
+  const data = { ...zahranicneData(), stravne: true, ubytovanie: true };
   const vysledok = Prikaz.spracujPrikaz(data);
   assert.deepEqual(vysledok.errors, []);
   assert.ok(vysledok.outputText.includes('Zahraničná cesta: áno'));
   assert.ok(vysledok.outputText.includes('Stravné: áno'));
   assert.ok(vysledok.outputText.includes('Ubytovanie: áno'));
+});
+
+test('zahraničný príkaz s vyplneným Prechod hranice má riadky na správnom mieste v Cesta tam aj Cesta späť', () => {
+  const vysledok = Prikaz.spracujPrikaz(zahranicneData());
+  assert.deepEqual(vysledok.errors, []);
+  assert.deepEqual(vysledok.warnings, []);
+  assert.equal(vysledok.outputText, OCAKAVANY_VYSTUP_ZAHRANICNY);
+  assert.equal(vysledok.fileName, 'prikaz-novak-2026-09-15.txt');
+});
+
+test('Zahraničná cesta = áno bez Prechodu hranice (tam aj späť, miesto aj čas) je blokujúca chyba', () => {
+  for (const pole of Object.keys(PRECHOD_HRANICE)) {
+    const data = zahranicneData();
+    delete data[pole];
+    const vysledok = Prikaz.spracujPrikaz(data);
+    assert.ok(vysledok.errors.length > 0, `pole "${pole}" malo byť podmienene povinné`);
+    assert.ok(
+      vysledok.errors.some((e) => e.includes('Prechod hranice')),
+      `pole "${pole}": chyba sa má vzťahovať k Prechod hranice, dostalo sa: ${JSON.stringify(vysledok.errors)}`,
+    );
+    assert.equal(vysledok.outputText, '', `pole "${pole}": outputText nesmie byť vygenerovaný`);
+    assert.equal(vysledok.fileName, '', `pole "${pole}": fileName nesmie byť vygenerovaný`);
+
+    const prazdne = zahranicneData();
+    prazdne[pole] = '   ';
+    assert.ok(Prikaz.spracujPrikaz(prazdne).errors.length > 0, `pole "${pole}": prázdna hodnota musí blokovať`);
+  }
+});
+
+test('tuzemská cesta nevyžaduje Prechod hranice a jeho riadky vo výstupe úplne chýbajú', () => {
+  const data = { ...zakladneData(), ...PRECHOD_HRANICE, zahranicna: false };
+  const vysledok = Prikaz.spracujPrikaz(data);
+  assert.deepEqual(vysledok.errors, []);
+  assert.ok(!vysledok.outputText.includes('Prechod hranice'), 'tuzemský výstup nesmie obsahovať Prechod hranice');
+  assert.ok(!vysledok.outputText.includes('Brodské'), 'tuzemský výstup nesmie obsahovať hodnoty z podmienených polí');
 });
 
 test('prázdny Spolucestujúci sa vo výstupe úplne vynechá', () => {
