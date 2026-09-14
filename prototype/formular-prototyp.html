@@ -1,0 +1,558 @@
+<!--
+  PROTOTYP — jednorazový, zahodiť po rozhodnutí.
+  Tri varianty rozloženia formulára "Príkaz na služobnú cestu", prepínateľné cez ?variant=A|B|C.
+  Rieši ticket #3 mapy "Webová appka na Príkaz na služobnú cestu".
+  Polia a validačné pravidlá podľa docs/Služobná cesta - tlačivo.docx a rozhodnutia v issue #2.
+  Formát výstupu (kopírovateľný text / súbor) NIE je predmetom tohto prototypu — tlačidlá dole sú len makety.
+-->
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYP — Príkaz na služobnú cestu</title>
+<style>
+  :root {
+    --fri-blue: #0b3d91;
+    --fri-blue-light: #e8f0fc;
+    --ok-green: #1d7a3c;
+    --warn-amber: #b8860b;
+    --border: #d5dae0;
+    --text: #1c2430;
+    --muted: #6b7684;
+    --bg: #f4f6f8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  h1, h2, h3 { margin: 0 0 .5rem; }
+  label { font-weight: 600; font-size: .92rem; }
+  input, select, textarea {
+    font: inherit; padding: .5rem .6rem; border: 1px solid var(--border); border-radius: 4px;
+    width: 100%; background: #fff; color: var(--text);
+  }
+  input:invalid:not(:placeholder-shown), input.touched:invalid { border-color: #c0392b; }
+  fieldset { border: none; padding: 0; margin: 0; }
+  .req::after { content: " *"; color: #c0392b; }
+  .cond-badge {
+    display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .02em;
+    color: var(--warn-amber); border: 1px solid var(--warn-amber); border-radius: 3px;
+    padding: 0 .3rem; margin-left: .4rem; text-transform: uppercase; vertical-align: middle;
+  }
+  .field { margin-bottom: .85rem; }
+  .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .row > .field { flex: 1 1 200px; }
+  .hint { font-size: .78rem; color: var(--muted); margin-top: .2rem; }
+  .radio-group { display: flex; gap: 1.2rem; align-items: center; }
+  .radio-group label { font-weight: 500; display: flex; align-items: center; gap: .35rem; }
+  [hidden] { display: none !important; }
+  .pill-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+  .pill-toggle button {
+    border: none; background: #fff; padding: .4rem 1rem; cursor: pointer; font: inherit; font-weight: 600; color: var(--muted);
+  }
+  .pill-toggle button.active { background: var(--fri-blue); color: #fff; }
+
+  /* ---------- switcher bar (not part of the design being evaluated) ---------- */
+  #switcher {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: .75rem;
+    background: #111; color: #fff; padding: .5rem .5rem .5rem 1rem; border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.35); font-family: ui-monospace, monospace; font-size: .85rem; z-index: 999;
+  }
+  #switcher button { background: #fff2; border: none; color: #fff; width: 2rem; height: 2rem; border-radius: 50%; cursor: pointer; font-size: 1rem; }
+  #switcher button:hover { background: #fff4; }
+  #switcher .label { min-width: 13rem; text-align: center; }
+
+  /* ================= VARIANT A — jedna stránka, holý úradný štýl ================= */
+  body[data-variant="A"] #app { max-width: 760px; margin: 2rem auto 6rem; padding: 0 1rem; }
+  body[data-variant="A"] .a-section { background: #fff; border: 1px solid var(--border); padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+  body[data-variant="A"] .a-section h2 { font-size: .95rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
+  body[data-variant="A"] .a-conditional { border-left: 3px solid var(--warn-amber); padding-left: .8rem; margin-left: .1rem; }
+  body[data-variant="A"] button.primary { background: var(--fri-blue); color: #fff; border: none; padding: .7rem 1.4rem; font: inherit; font-weight: 600; cursor: pointer; }
+  body[data-variant="A"] button.secondary { background: #fff; border: 1px solid var(--border); padding: .7rem 1.4rem; font: inherit; cursor: pointer; }
+
+  /* ================= VARIANT B — sprievodca krokmi, štylizovaný, mobile-first ================= */
+  body[data-variant="B"] #app { max-width: 480px; margin: 0 auto 6rem; min-height: 100vh; background: #fff; }
+  body[data-variant="B"] .b-header { background: var(--fri-blue); color: #fff; padding: 1.2rem 1.2rem 2.2rem; }
+  body[data-variant="B"] .b-header h1 { font-size: 1.1rem; }
+  body[data-variant="B"] .b-progress { display: flex; gap: .4rem; margin-top: .9rem; }
+  body[data-variant="B"] .b-progress i { flex: 1; height: 4px; border-radius: 2px; background: #ffffff55; }
+  body[data-variant="B"] .b-progress i.done { background: #fff; }
+  body[data-variant="B"] .b-step { padding: 1.4rem 1.2rem 1rem; margin-top: -1.4rem; background: #fff; border-radius: 16px 16px 0 0; }
+  body[data-variant="B"] .b-step h2 { color: var(--fri-blue); font-size: 1.05rem; }
+  body[data-variant="B"] .b-nav { display: flex; gap: .7rem; padding: 1rem 1.2rem 1.6rem; }
+  body[data-variant="B"] .b-nav button { flex: 1; padding: .85rem; border-radius: 10px; font: inherit; font-weight: 700; font-size: 1rem; cursor: pointer; }
+  body[data-variant="B"] .b-nav button.next { background: var(--fri-blue); color: #fff; border: none; }
+  body[data-variant="B"] .b-nav button.back { background: #fff; border: 1px solid var(--border); color: var(--fri-blue); }
+  body[data-variant="B"] input, body[data-variant="B"] select, body[data-variant="B"] textarea { padding: .75rem .7rem; border-radius: 10px; font-size: 1rem; }
+  body[data-variant="B"] .pill-toggle button { padding: .6rem 1.4rem; font-size: 1rem; }
+
+  /* ================= VARIANT C — dve symetrické karty Tam/Späť, lepiaci spodný panel ================= */
+  body[data-variant="C"] #app { max-width: 1000px; margin: 1.5rem auto 6.5rem; padding: 0 1rem; }
+  body[data-variant="C"] .c-card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 1.1rem 1.3rem; margin-bottom: 1.2rem; }
+  body[data-variant="C"] .c-journey { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+  @media (max-width: 720px) { body[data-variant="C"] .c-journey { grid-template-columns: 1fr; } }
+  body[data-variant="C"] .c-journey .c-card h3 { color: var(--fri-blue); display: flex; align-items: center; gap: .5rem; }
+  body[data-variant="C"] .c-journey .c-card.tam { border-top: 4px solid var(--fri-blue); }
+  body[data-variant="C"] .c-journey .c-card.spat { border-top: 4px solid var(--ok-green); }
+  body[data-variant="C"] .c-timeline { border-left: 2px dashed var(--border); padding-left: 1rem; margin-left: .3rem; }
+  body[data-variant="C"] .c-timeline .field { position: relative; }
+  body[data-variant="C"] .c-timeline .field::before { content: ""; position: absolute; left: -1.28rem; top: .45rem; width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  body[data-variant="C"] .c-sticky {
+    position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--border);
+    padding: .8rem 1.5rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 12px rgba(0,0,0,.06);
+  }
+  body[data-variant="C"] .c-sticky .status { font-size: .85rem; color: var(--muted); }
+  body[data-variant="C"] .c-sticky .actions button { margin-left: .6rem; padding: .6rem 1.1rem; border-radius: 6px; font: inherit; font-weight: 600; cursor: pointer; }
+  body[data-variant="C"] .c-sticky .actions button.primary { background: var(--fri-blue); color: #fff; border: none; }
+  body[data-variant="C"] .c-sticky .actions button.secondary { background: #fff; border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="switcher">
+  <button id="prev" aria-label="Predchádzajúci variant">←</button>
+  <span class="label" id="switcher-label"></span>
+  <button id="next" aria-label="Nasledujúci variant">→</button>
+</div>
+
+<script>
+const VARIANTS = {
+  A: "A — Jedna stránka, holý úradný štýl",
+  B: "B — Sprievodca krokmi, mobile-first",
+  C: "C — Karty Tam/Späť, lepiaci panel",
+};
+const ORDER = Object.keys(VARIANTS);
+
+// ---------- shared field-state used by every variant instance ----------
+const state = {
+  zahranicna: false,
+  stravne: false,
+  ubytovanie: false,
+};
+
+function conditionalHooks(root) {
+  const zahr = root.querySelectorAll('[data-toggle="zahranicna"]');
+  const strv = root.querySelectorAll('[data-toggle="stravne"]');
+  const ubyt = root.querySelectorAll('[data-toggle="ubytovanie"]');
+  zahr.forEach(el => el.addEventListener('change', e => {
+    state.zahranicna = e.target.value === 'ano';
+    root.querySelectorAll('[data-show="zahranicna"]').forEach(n => n.hidden = !state.zahranicna);
+    root.querySelectorAll('[data-req="zahranicna"]').forEach(n => n.required = state.zahranicna);
+  }));
+  strv.forEach(el => el.addEventListener('change', e => {
+    state.stravne = e.target.value === 'ano';
+    root.querySelectorAll('[data-show="stravne"]').forEach(n => n.hidden = !state.stravne);
+  }));
+  ubyt.forEach(el => el.addEventListener('change', e => {
+    state.ubytovanie = e.target.value === 'ano';
+    root.querySelectorAll('[data-show="ubytovanie"]').forEach(n => n.hidden = !state.ubytovanie);
+    root.querySelectorAll('[data-req="ubytovanie"]').forEach(n => n.required = state.ubytovanie);
+  }));
+  root.querySelectorAll('form').forEach(f => {
+    const btn = f.querySelector('[data-action="skontrolovat"]');
+    if (btn) btn.addEventListener('click', e => {
+      e.preventDefault();
+      if (f.reportValidity()) alert('Formulár je kompletný. (Prototyp — export textu/súboru rieši iný tiket.)');
+    });
+  });
+}
+
+// ---------- variant A ----------
+function renderA() {
+  return `
+  <h1 style="margin:1.2rem 0 1.6rem;">Príkaz na služobnú cestu</h1>
+  <form novalidate>
+    <div class="a-section">
+      <h2>Základné údaje</h2>
+      <div class="row">
+        <div class="field"><label class="req">Kde</label><input required></div>
+        <div class="field"><label class="req">Kedy (dátum)</label><input type="date" required></div>
+      </div>
+      <div class="row">
+        <div class="field"><label class="req">Doprava</label><input required></div>
+        <div class="field"><label class="req">Navštívená inštitúcia</label><input required></div>
+      </div>
+      <div class="field"><label class="req">Dôvod</label><textarea required rows="2"></textarea></div>
+      <div class="field">
+        <label class="req">Zahraničná cesta</label>
+        <div class="radio-group">
+          <label><input type="radio" name="a-zahr" data-toggle="zahranicna" value="nie" checked required> Nie</label>
+          <label><input type="radio" name="a-zahr" data-toggle="zahranicna" value="ano" required> Áno</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="a-section">
+      <h2>Stravné a ubytovanie</h2>
+      <div class="field">
+        <label class="req">Stravné</label>
+        <div class="radio-group">
+          <label><input type="radio" name="a-strv" data-toggle="stravne" value="nie" checked required> Nie</label>
+          <label><input type="radio" name="a-strv" data-toggle="stravne" value="ano" required> Áno</label>
+        </div>
+      </div>
+      <div class="field a-conditional" data-show="stravne" hidden>
+        <label class="req">R / O / V <span class="cond-badge">podmienené</span></label>
+        <div class="radio-group">
+          <label><input type="checkbox"> Raňajky</label>
+          <label><input type="checkbox"> Obed</label>
+          <label><input type="checkbox"> Večera</label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="req">Ubytovanie</label>
+        <div class="radio-group">
+          <label><input type="radio" name="a-uby" data-toggle="ubytovanie" value="nie" checked required> Nie</label>
+          <label><input type="radio" name="a-uby" data-toggle="ubytovanie" value="ano" required> Áno</label>
+        </div>
+      </div>
+      <div class="field a-conditional" data-show="ubytovanie" hidden>
+        <label class="req">Suma <span class="cond-badge">podmienené</span></label>
+        <input type="number" step="0.01" data-req="ubytovanie">
+      </div>
+      <div class="field"><label class="req">Hradené (z čoho)</label><input required></div>
+    </div>
+
+    <div class="a-section">
+      <h2>Cesta tam</h2>
+      <div class="field">
+        <label class="req">Miesto odchodu</label>
+        <div class="radio-group">
+          <label><input type="radio" name="a-mo" checked> Žilina FRI</label>
+          <label><input type="radio" name="a-mo"> Z domu</label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label class="req">Odchod (dátum a čas)</label><input type="datetime-local" required></div>
+        <div class="field"><label class="req">Príchod na miesto (dátum a čas)</label><input type="datetime-local" required></div>
+      </div>
+      <div class="field a-conditional" data-show="zahranicna" hidden>
+        <label>Prechod hranice — kde a kedy <span class="cond-badge">podmienené</span></label>
+        <div class="row">
+          <input placeholder="kde" data-req="zahranicna">
+          <input type="datetime-local" data-req="zahranicna">
+        </div>
+      </div>
+      <p class="hint">⚠ poradie odchod → hranica (ak zahraničná) → príchod sa overuje ako varovanie, nie blokujúco.</p>
+    </div>
+
+    <div class="a-section">
+      <h2>Cesta späť</h2>
+      <div class="field"><label class="req">Odchod zo SC (dátum a čas)</label><input type="datetime-local" required></div>
+      <div class="field a-conditional" data-show="zahranicna" hidden>
+        <label>Prechod hranice — kde a kedy <span class="cond-badge">podmienené</span></label>
+        <div class="row">
+          <input placeholder="kde" data-req="zahranicna">
+          <input type="datetime-local" data-req="zahranicna">
+        </div>
+      </div>
+      <div class="field">
+        <label class="req">Miesto príchodu</label>
+        <div class="radio-group">
+          <label><input type="radio" name="a-mp" checked> Žilina FRI</label>
+          <label><input type="radio" name="a-mp"> Domov</label>
+        </div>
+      </div>
+      <div class="field"><label class="req">Príchod (dátum a čas)</label><input type="datetime-local" required></div>
+    </div>
+
+    <div class="a-section">
+      <h2>Ostatné</h2>
+      <div class="field"><label>Spolucestujúci</label><textarea rows="2" placeholder="voľný text, nepovinné"></textarea></div>
+    </div>
+
+    <button class="primary" data-action="skontrolovat">Skontrolovať a pripraviť výstup</button>
+    <button type="button" class="secondary">Vymazať</button>
+  </form>`;
+}
+
+// ---------- variant B ----------
+function renderB() {
+  return `
+  <div class="b-header">
+    <h1>Príkaz na služobnú cestu</h1>
+    <div class="b-progress">
+      <i class="done"></i><i></i><i></i><i></i><i></i>
+    </div>
+  </div>
+  <form novalidate>
+  <div class="b-steps">
+    <section class="b-step" data-step="1">
+      <h2>1. Základné údaje</h2>
+      <div class="field"><label class="req">Kde</label><input required></div>
+      <div class="field"><label class="req">Kedy (dátum)</label><input type="date" required></div>
+      <div class="field"><label class="req">Doprava</label><input required></div>
+      <div class="field"><label class="req">Dôvod</label><textarea required rows="2"></textarea></div>
+      <div class="field"><label class="req">Navštívená inštitúcia</label><input required></div>
+      <div class="field">
+        <label class="req">Zahraničná cesta?</label>
+        <div class="pill-toggle" data-pill="zahranicna">
+          <button type="button" data-val="nie" class="active">Nie</button>
+          <button type="button" data-val="ano">Áno</button>
+        </div>
+        <input type="hidden" data-toggle="zahranicna-hidden" value="nie">
+      </div>
+    </section>
+
+    <section class="b-step" data-step="2" hidden>
+      <h2>2. Stravné a ubytovanie</h2>
+      <div class="field">
+        <label class="req">Stravné?</label>
+        <div class="pill-toggle" data-pill="stravne">
+          <button type="button" data-val="nie" class="active">Nie</button>
+          <button type="button" data-val="ano">Áno</button>
+        </div>
+      </div>
+      <div class="field" data-show="stravne" hidden>
+        <label class="req">R / O / V <span class="cond-badge">podmienené</span></label>
+        <div class="radio-group">
+          <label><input type="checkbox"> Raňajky</label>
+          <label><input type="checkbox"> Obed</label>
+          <label><input type="checkbox"> Večera</label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="req">Ubytovanie?</label>
+        <div class="pill-toggle" data-pill="ubytovanie">
+          <button type="button" data-val="nie" class="active">Nie</button>
+          <button type="button" data-val="ano">Áno</button>
+        </div>
+      </div>
+      <div class="field" data-show="ubytovanie" hidden>
+        <label class="req">Suma <span class="cond-badge">podmienené</span></label>
+        <input type="number" step="0.01">
+      </div>
+      <div class="field"><label class="req">Hradené (z čoho)</label><input required></div>
+    </section>
+
+    <section class="b-step" data-step="3" hidden>
+      <h2>3. Cesta tam</h2>
+      <div class="field">
+        <label class="req">Miesto odchodu</label>
+        <div class="radio-group">
+          <label><input type="radio" name="b-mo" checked> Žilina FRI</label>
+          <label><input type="radio" name="b-mo"> Z domu</label>
+        </div>
+      </div>
+      <div class="field"><label class="req">Odchod (dátum a čas)</label><input type="datetime-local" required></div>
+      <div class="field" data-show="zahranicna" hidden>
+        <label>Prechod hranice <span class="cond-badge">podmienené</span></label>
+        <input placeholder="kde" style="margin-bottom:.5rem">
+        <input type="datetime-local">
+      </div>
+      <div class="field"><label class="req">Príchod na miesto (dátum a čas)</label><input type="datetime-local" required></div>
+    </section>
+
+    <section class="b-step" data-step="4" hidden>
+      <h2>4. Cesta späť</h2>
+      <div class="field"><label class="req">Odchod zo SC (dátum a čas)</label><input type="datetime-local" required></div>
+      <div class="field" data-show="zahranicna" hidden>
+        <label>Prechod hranice <span class="cond-badge">podmienené</span></label>
+        <input placeholder="kde" style="margin-bottom:.5rem">
+        <input type="datetime-local">
+      </div>
+      <div class="field">
+        <label class="req">Miesto príchodu</label>
+        <div class="radio-group">
+          <label><input type="radio" name="b-mp" checked> Žilina FRI</label>
+          <label><input type="radio" name="b-mp"> Domov</label>
+        </div>
+      </div>
+      <div class="field"><label class="req">Príchod (dátum a čas)</label><input type="datetime-local" required></div>
+      <p class="hint">⚠ nadväznosť časov sa overí ako varovanie pri kroku Súhrn.</p>
+    </section>
+
+    <section class="b-step" data-step="5" hidden>
+      <h2>5. Spolucestujúci a súhrn</h2>
+      <div class="field"><label>Spolucestujúci</label><textarea rows="2" placeholder="voľný text, nepovinné"></textarea></div>
+      <p class="hint">Tu by bol náhľad vyplneného príkazu pred kopírovaním / stiahnutím.</p>
+    </section>
+  </div>
+  <div class="b-nav">
+    <button type="button" class="back" id="b-back">Späť</button>
+    <button type="button" class="next" id="b-next">Ďalej</button>
+  </div>
+  </form>`;
+}
+
+function wireB(root) {
+  const steps = [...root.querySelectorAll('.b-step')];
+  const dots = [...root.querySelectorAll('.b-progress i')];
+  let idx = 0;
+  const show = i => {
+    steps.forEach((s, n) => s.hidden = n !== i);
+    dots.forEach((d, n) => d.classList.toggle('done', n <= i));
+    root.querySelector('#b-back').style.visibility = i === 0 ? 'hidden' : 'visible';
+    root.querySelector('#b-next').textContent = i === steps.length - 1 ? 'Dokončiť' : 'Ďalej';
+  };
+  root.querySelector('#b-next').addEventListener('click', () => { if (idx < steps.length - 1) { idx++; show(idx); } else alert('Prototyp — export rieši iný tiket.'); });
+  root.querySelector('#b-back').addEventListener('click', () => { if (idx > 0) { idx--; show(idx); } });
+  root.querySelectorAll('[data-pill]').forEach(group => {
+    const kind = group.dataset.pill;
+    group.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+      group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const on = btn.dataset.val === 'ano';
+      root.querySelectorAll(`[data-show="${kind}"]`).forEach(n => n.hidden = !on);
+    }));
+  });
+  show(0);
+}
+
+// ---------- variant C ----------
+function renderC() {
+  return `
+  <h1>Príkaz na služobnú cestu</h1>
+  <form novalidate>
+    <div class="c-card">
+      <h3>Základné údaje</h3>
+      <div class="row">
+        <div class="field"><label class="req">Kde</label><input required></div>
+        <div class="field"><label class="req">Kedy (dátum)</label><input type="date" required></div>
+        <div class="field"><label class="req">Doprava</label><input required></div>
+      </div>
+      <div class="row">
+        <div class="field" style="flex:2"><label class="req">Dôvod</label><input required></div>
+        <div class="field" style="flex:2"><label class="req">Navštívená inštitúcia</label><input required></div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label class="req">Zahraničná cesta</label>
+          <div class="radio-group">
+            <label><input type="radio" name="c-zahr" data-toggle="zahranicna" value="nie" checked> Nie</label>
+            <label><input type="radio" name="c-zahr" data-toggle="zahranicna" value="ano"> Áno</label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="req">Stravné</label>
+          <div class="radio-group">
+            <label><input type="radio" name="c-strv" data-toggle="stravne" value="nie" checked> Nie</label>
+            <label><input type="radio" name="c-strv" data-toggle="stravne" value="ano"> Áno</label>
+          </div>
+        </div>
+        <div class="field">
+          <label class="req">Ubytovanie</label>
+          <div class="radio-group">
+            <label><input type="radio" name="c-uby" data-toggle="ubytovanie" value="nie" checked> Nie</label>
+            <label><input type="radio" name="c-uby" data-toggle="ubytovanie" value="ano"> Áno</label>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field" data-show="stravne" hidden>
+          <label class="req">R / O / V <span class="cond-badge">podmienené</span></label>
+          <div class="radio-group">
+            <label><input type="checkbox"> R</label>
+            <label><input type="checkbox"> O</label>
+            <label><input type="checkbox"> V</label>
+          </div>
+        </div>
+        <div class="field" data-show="ubytovanie" hidden>
+          <label class="req">Suma <span class="cond-badge">podmienené</span></label>
+          <input type="number" step="0.01">
+        </div>
+        <div class="field"><label class="req">Hradené (z čoho)</label><input required></div>
+      </div>
+    </div>
+
+    <div class="c-journey">
+      <div class="c-card tam">
+        <h3>➡ Cesta tam</h3>
+        <div class="c-timeline">
+          <div class="field">
+            <label class="req">Miesto odchodu</label>
+            <div class="radio-group">
+              <label><input type="radio" name="c-mo" checked> Žilina FRI</label>
+              <label><input type="radio" name="c-mo"> Z domu</label>
+            </div>
+          </div>
+          <div class="field"><label class="req">Odchod (dátum a čas)</label><input type="datetime-local" required></div>
+          <div class="field" data-show="zahranicna" hidden>
+            <label>Prechod hranice <span class="cond-badge">podmienené</span></label>
+            <input placeholder="kde" style="margin-bottom:.4rem">
+            <input type="datetime-local">
+          </div>
+          <div class="field"><label class="req">Príchod na miesto (dátum a čas)</label><input type="datetime-local" required></div>
+        </div>
+      </div>
+      <div class="c-card spat">
+        <h3>⬅ Cesta späť</h3>
+        <div class="c-timeline">
+          <div class="field"><label class="req">Odchod zo SC (dátum a čas)</label><input type="datetime-local" required></div>
+          <div class="field" data-show="zahranicna" hidden>
+            <label>Prechod hranice <span class="cond-badge">podmienené</span></label>
+            <input placeholder="kde" style="margin-bottom:.4rem">
+            <input type="datetime-local">
+          </div>
+          <div class="field">
+            <label class="req">Miesto príchodu</label>
+            <div class="radio-group">
+              <label><input type="radio" name="c-mp" checked> Žilina FRI</label>
+              <label><input type="radio" name="c-mp"> Domov</label>
+            </div>
+          </div>
+          <div class="field"><label class="req">Príchod (dátum a čas)</label><input type="datetime-local" required></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="c-card">
+      <label>Spolucestujúci</label>
+      <textarea rows="2" placeholder="voľný text, nepovinné"></textarea>
+    </div>
+
+    <div class="c-sticky">
+      <span class="status">Polia označené * sú povinné · podmienené polia sa aktivujú podľa prepínačov vyššie</span>
+      <span class="actions">
+        <button type="button" class="secondary">Vymazať</button>
+        <button type="button" class="primary" data-action="skontrolovat">Skopírovať / Stiahnuť</button>
+      </span>
+    </div>
+  </form>`;
+}
+
+// ---------- switcher plumbing ----------
+const app = document.getElementById('app');
+const label = document.getElementById('switcher-label');
+
+function currentVariant() {
+  const v = new URLSearchParams(location.search).get('variant');
+  return VARIANTS[v] ? v : 'A';
+}
+
+function render(v) {
+  document.body.dataset.variant = v;
+  label.textContent = VARIANTS[v];
+  if (v === 'A') app.innerHTML = renderA();
+  if (v === 'B') app.innerHTML = renderB();
+  if (v === 'C') app.innerHTML = renderC();
+  conditionalHooks(app);
+  if (v === 'B') wireB(app);
+}
+
+function goTo(v) {
+  const url = new URL(location.href);
+  url.searchParams.set('variant', v);
+  history.replaceState(null, '', url);
+  render(v);
+}
+
+function cycle(delta) {
+  const i = ORDER.indexOf(currentVariant());
+  goTo(ORDER[(i + delta + ORDER.length) % ORDER.length]);
+}
+
+document.getElementById('prev').addEventListener('click', () => cycle(-1));
+document.getElementById('next').addEventListener('click', () => cycle(1));
+window.addEventListener('keydown', e => {
+  const tag = document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement.isContentEditable) return;
+  if (e.key === 'ArrowLeft') cycle(-1);
+  if (e.key === 'ArrowRight') cycle(1);
+});
+
+render(currentVariant());
+</script>
+</body>
+</html>
