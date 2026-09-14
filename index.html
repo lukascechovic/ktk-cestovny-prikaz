@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Príkaz na služobnú cestu</title>
+<style>
+  :root {
+    --fri-blue: #0b3d91;
+    --ok-green: #1d7a3c;
+    --border: #d5dae0;
+    --text: #1c2430;
+    --muted: #6b7684;
+    --bg: #f4f6f8;
+    --error: #c0392b;
+    --error-bg: #fdecea;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  h1 { margin: 1.4rem 0 1rem; font-size: 1.4rem; }
+  h2 { margin: 0 0 .8rem; font-size: 1rem; color: var(--fri-blue); }
+  #app { max-width: 760px; margin: 0 auto 7rem; padding: 0 1rem; }
+  .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 1.1rem 1.3rem; margin-bottom: 1.2rem; }
+  .card.spat { border-top: 3px solid var(--ok-green); }
+  .card.tam { border-top: 3px solid var(--fri-blue); }
+  label { font-weight: 600; font-size: .92rem; display: block; margin-bottom: .3rem; }
+  input, textarea {
+    font: inherit; padding: .5rem .6rem; border: 1px solid var(--border); border-radius: 4px;
+    width: 100%; background: #fff; color: var(--text);
+  }
+  .field { margin-bottom: .9rem; }
+  .req::after { content: " *"; color: var(--error); }
+  .radio-group { display: flex; gap: 1.2rem; align-items: center; }
+  .radio-group label { font-weight: 500; display: flex; align-items: center; gap: .35rem; margin-bottom: 0; }
+  #chyby {
+    background: var(--error-bg); border: 1px solid var(--error); color: var(--error);
+    border-radius: 6px; padding: .8rem 1rem; margin-bottom: 1.2rem;
+  }
+  #chyby ul { margin: .4rem 0 0; padding-left: 1.2rem; }
+  #stav { color: var(--ok-green); font-weight: 600; margin-bottom: 1.2rem; }
+  .panel {
+    position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--border);
+    padding: .8rem 1.5rem; display: flex; justify-content: flex-end; gap: .6rem; box-shadow: 0 -4px 12px rgba(0,0,0,.06);
+  }
+  .panel button { padding: .6rem 1.1rem; border-radius: 6px; font: inherit; font-weight: 600; cursor: pointer; }
+  .panel button.primary { background: var(--fri-blue); color: #fff; border: none; }
+  .panel button.secondary { background: #fff; border: 1px solid var(--border); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Príkaz na služobnú cestu</h1>
+  <form id="prikazForm" novalidate>
+
+    <div id="chyby" role="alert" hidden></div>
+    <div id="stav" role="status" hidden></div>
+
+    <div class="card">
+      <h2>Základné údaje</h2>
+      <div class="field">
+        <label class="req" for="menoPriezvisko">Meno a priezvisko</label>
+        <input id="menoPriezvisko" name="menoPriezvisko" type="text">
+      </div>
+      <div class="field">
+        <label class="req" for="kde">Kde</label>
+        <input id="kde" name="kde" type="text">
+      </div>
+      <div class="field">
+        <label class="req" for="kedy">Kedy (dátum)</label>
+        <input id="kedy" name="kedy" type="date">
+      </div>
+      <div class="field">
+        <label class="req" for="doprava">Doprava</label>
+        <input id="doprava" name="doprava" type="text">
+      </div>
+      <div class="field">
+        <label class="req" for="dovod">Dôvod</label>
+        <input id="dovod" name="dovod" type="text">
+      </div>
+      <div class="field">
+        <label class="req" for="institucia">Navštívená inštitúcia</label>
+        <input id="institucia" name="institucia" type="text">
+      </div>
+      <div class="field">
+        <label class="req">Zahraničná cesta</label>
+        <div class="radio-group">
+          <label><input type="radio" name="zahranicna" value="nie" checked> Nie</label>
+          <label><input type="radio" name="zahranicna" value="ano"> Áno</label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="req">Stravné</label>
+        <div class="radio-group">
+          <label><input type="radio" name="stravne" value="nie" checked> Nie</label>
+          <label><input type="radio" name="stravne" value="ano"> Áno</label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="req">Ubytovanie</label>
+        <div class="radio-group">
+          <label><input type="radio" name="ubytovanie" value="nie" checked> Nie</label>
+          <label><input type="radio" name="ubytovanie" value="ano"> Áno</label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="req" for="hradene">Hradené (z čoho)</label>
+        <input id="hradene" name="hradene" type="text">
+      </div>
+    </div>
+
+    <div class="card tam">
+      <h2>Cesta tam</h2>
+      <div class="field">
+        <label class="req">Miesto odchodu</label>
+        <div class="radio-group">
+          <label><input type="radio" name="miestoOdchodu" value="Žilina FRI" checked> Žilina FRI</label>
+          <label><input type="radio" name="miestoOdchodu" value="Z domu"> Z domu</label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="req" for="odchodTam">Odchod (dátum a čas)</label>
+        <input id="odchodTam" name="odchodTam" type="datetime-local">
+      </div>
+      <div class="field">
+        <label class="req" for="prichodNaMiesto">Príchod na miesto (dátum a čas)</label>
+        <input id="prichodNaMiesto" name="prichodNaMiesto" type="datetime-local">
+      </div>
+    </div>
+
+    <div class="card spat">
+      <h2>Cesta späť</h2>
+      <div class="field">
+        <label class="req" for="odchodZoSC">Odchod zo SC (dátum a čas)</label>
+        <input id="odchodZoSC" name="odchodZoSC" type="datetime-local">
+      </div>
+      <div class="field">
+        <label class="req">Miesto príchodu</label>
+        <div class="radio-group">
+          <label><input type="radio" name="miestoPrichodu" value="Žilina FRI" checked> Žilina FRI</label>
+          <label><input type="radio" name="miestoPrichodu" value="Domov"> Domov</label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="req" for="prichodSpat">Príchod (dátum a čas)</label>
+        <input id="prichodSpat" name="prichodSpat" type="datetime-local">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="field" style="margin-bottom:0;">
+        <label for="spolucestujuci">Spolucestujúci</label>
+        <textarea id="spolucestujuci" name="spolucestujuci" rows="2" placeholder="voľný text, nepovinné"></textarea>
+      </div>
+    </div>
+
+    <div class="panel">
+      <button type="button" class="secondary" id="btnVymazat">Vymazať</button>
+      <button type="button" class="primary" id="btnSkopirovat">Skopírovať / Stiahnuť</button>
+    </div>
+  </form>
+</div>
+
+<script>
+// ==================== čistá logika (bez DOM), testovací seam ====================
+(function () {
+  const POVINNE_TEXTOVE_POLIA = [
+    ['menoPriezvisko', 'Meno a priezvisko'],
+    ['kde', 'Kde'],
+    ['kedy', 'Kedy (dátum)'],
+    ['doprava', 'Doprava'],
+    ['dovod', 'Dôvod'],
+    ['institucia', 'Navštívená inštitúcia'],
+    ['hradene', 'Hradené (z čoho)'],
+    ['miestoOdchodu', 'Miesto odchodu'],
+    ['odchodTam', 'Odchod (tam)'],
+    ['prichodNaMiesto', 'Príchod na miesto (tam)'],
+    ['odchodZoSC', 'Odchod zo SC (späť)'],
+    ['miestoPrichodu', 'Miesto príchodu'],
+    ['prichodSpat', 'Príchod (späť)'],
+  ];
+
+  const jePrazdnyText = (hodnota) => hodnota === undefined || hodnota === null || String(hodnota).trim() === '';
+  const jeChybajuceBool = (hodnota) => typeof hodnota !== 'boolean';
+
+  const POVINNE_POLIA = [
+    ...POVINNE_TEXTOVE_POLIA.map(([kluc, popis]) => [kluc, popis, jePrazdnyText]),
+    ...[
+      ['zahranicna', 'Zahraničná cesta'],
+      ['stravne', 'Stravné'],
+      ['ubytovanie', 'Ubytovanie'],
+    ].map(([kluc, popis]) => [kluc, popis, jeChybajuceBool]),
+  ];
+
+  function validuj(formData) {
+    const errors = [];
+    for (const [kluc, popis, jeChybajuce] of POVINNE_POLIA) {
+      if (jeChybajuce(formData[kluc])) {
+        errors.push(`Chýba povinné pole: ${popis}`);
+      }
+    }
+    return errors;
+  }
+
+  function anoNie(hodnota) {
+    return hodnota ? 'áno' : 'nie';
+  }
+
+  function formatujDatum(iso) {
+    const [rok, mesiac, den] = iso.split('-');
+    return `${den}.${mesiac}.${rok}`;
+  }
+
+  function formatujDatumACas(iso) {
+    const [datumovaCast, casovaCast] = iso.split('T');
+    return `${formatujDatum(datumovaCast)} ${casovaCast}`;
+  }
+
+  function vygenerujVystup(formData) {
+    const riadky = [
+      `Meno a priezvisko: ${formData.menoPriezvisko}`,
+      `Kde: ${formData.kde}`,
+      `Kedy (dátum): ${formatujDatum(formData.kedy)}`,
+      `Doprava: ${formData.doprava}`,
+      `Dôvod: ${formData.dovod}`,
+      `Navštívená inštitúcia: ${formData.institucia}`,
+      `Zahraničná cesta: ${anoNie(formData.zahranicna)}`,
+      `Stravné: ${anoNie(formData.stravne)}`,
+      `Ubytovanie: ${anoNie(formData.ubytovanie)}`,
+      `Hradené (z čoho): ${formData.hradene}`,
+      '',
+      'Cesta tam',
+      `Miesto odchodu: ${formData.miestoOdchodu}`,
+      `Odchod (dátum a čas): ${formatujDatumACas(formData.odchodTam)}`,
+      `Príchod na miesto (dátum a čas): ${formatujDatumACas(formData.prichodNaMiesto)}`,
+      '',
+      'Cesta späť',
+      `Odchod zo SC (dátum a čas): ${formatujDatumACas(formData.odchodZoSC)}`,
+      `Miesto príchodu: ${formData.miestoPrichodu}`,
+      `Príchod (dátum a čas): ${formatujDatumACas(formData.prichodSpat)}`,
+    ];
+    const spolucestujuci = (formData.spolucestujuci || '').trim();
+    if (spolucestujuci) {
+      riadky.push('', `Spolucestujúci: ${spolucestujuci}`);
+    }
+    return riadky.join('\r\n');
+  }
+
+  function odstranDiakritiku(text) {
+    return text.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  function odvodPriezvisko(menoPriezvisko) {
+    const slova = menoPriezvisko.trim().split(/\s+/).filter(Boolean);
+    const priezvisko = slova[slova.length - 1] || '';
+    return odstranDiakritiku(priezvisko.toLowerCase());
+  }
+
+  function vygenerujNazovSuboru(formData) {
+    return `prikaz-${odvodPriezvisko(formData.menoPriezvisko)}-${formData.kedy}.txt`;
+  }
+
+  function spracujPrikaz(formData) {
+    const errors = validuj(formData);
+    const warnings = [];
+    if (errors.length > 0) {
+      return { errors, warnings, outputText: '', fileName: '' };
+    }
+    return {
+      errors,
+      warnings,
+      outputText: vygenerujVystup(formData),
+      fileName: vygenerujNazovSuboru(formData),
+    };
+  }
+
+  window.Prikaz = {
+    spracujPrikaz,
+    validuj,
+    vygenerujVystup,
+    vygenerujNazovSuboru,
+    vzdyPovinnePolia: POVINNE_POLIA.map(([kluc]) => kluc),
+  };
+})();
+
+// ==================== DOM glue (netestované priamo) ====================
+if (typeof document !== 'undefined') {
+  (function () {
+    const form = document.getElementById('prikazForm');
+    const chybyBox = document.getElementById('chyby');
+    const stavBox = document.getElementById('stav');
+
+    function precitajFormData() {
+      const fd = new FormData(form);
+      const citajBool = (nazov) => {
+        const hodnota = fd.get(nazov);
+        return hodnota === null ? undefined : hodnota === 'ano';
+      };
+      return {
+        menoPriezvisko: fd.get('menoPriezvisko') || '',
+        kde: fd.get('kde') || '',
+        kedy: fd.get('kedy') || '',
+        doprava: fd.get('doprava') || '',
+        dovod: fd.get('dovod') || '',
+        institucia: fd.get('institucia') || '',
+        zahranicna: citajBool('zahranicna'),
+        stravne: citajBool('stravne'),
+        ubytovanie: citajBool('ubytovanie'),
+        hradene: fd.get('hradene') || '',
+        miestoOdchodu: fd.get('miestoOdchodu') || '',
+        odchodTam: fd.get('odchodTam') || '',
+        prichodNaMiesto: fd.get('prichodNaMiesto') || '',
+        odchodZoSC: fd.get('odchodZoSC') || '',
+        miestoPrichodu: fd.get('miestoPrichodu') || '',
+        prichodSpat: fd.get('prichodSpat') || '',
+        spolucestujuci: fd.get('spolucestujuci') || '',
+      };
+    }
+
+    function unikniHtml(text) {
+      return text.replace(/[&<>"']/g, (znak) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[znak]));
+    }
+
+    function zobrazChyby(errors) {
+      if (errors.length === 0) {
+        chybyBox.hidden = true;
+        chybyBox.innerHTML = '';
+        return;
+      }
+      chybyBox.hidden = false;
+      chybyBox.innerHTML = '<strong>Formulár nie je kompletný:</strong><ul>'
+        + errors.map((e) => `<li>${unikniHtml(e)}</li>`).join('')
+        + '</ul>';
+    }
+
+    function zobrazStav(text) {
+      if (!text) {
+        stavBox.hidden = true;
+        stavBox.textContent = '';
+        return;
+      }
+      stavBox.hidden = false;
+      stavBox.textContent = text;
+    }
+
+    function stiahniSubor(fileName, text) {
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function skopirujDoSchranky(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext !== false) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (e) {
+        // padá na záložnú metódu nižšie
+      }
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    document.getElementById('btnSkopirovat').addEventListener('click', async () => {
+      const formData = precitajFormData();
+      const vysledok = window.Prikaz.spracujPrikaz(formData);
+      zobrazChyby(vysledok.errors);
+      if (vysledok.errors.length > 0) {
+        zobrazStav('');
+        return;
+      }
+      const skopirovane = await skopirujDoSchranky(vysledok.outputText);
+      stiahniSubor(vysledok.fileName, vysledok.outputText);
+      zobrazStav(skopirovane
+        ? `Hotovo — text skopírovaný a súbor ${vysledok.fileName} stiahnutý.`
+        : `Súbor ${vysledok.fileName} stiahnutý (kopírovanie do schránky zlyhalo, text si skopírujte ručne z výstupu).`);
+    });
+
+    document.getElementById('btnVymazat').addEventListener('click', () => {
+      form.reset();
+      zobrazChyby([]);
+      zobrazStav('');
+    });
+  })();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "name": "ktk-cestovny-prikaz",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
